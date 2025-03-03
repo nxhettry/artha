@@ -33,6 +33,7 @@ export default function AddTransactionScreen() {
   const [type, setType] = useState<TransactionType>("expense");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [person, setPerson] = useState("");
 
   const handleAddTransaction = async () => {
     if (!title.trim()) {
@@ -59,8 +60,12 @@ export default function AddTransactionScreen() {
         type,
         date: date.toISOString(),
         id: "",
+        person,
       });
 
+
+      // This is for async storage
+      // ToDo : make this store the transaction offline and attach to Db later
       await addTransaction({
         title,
         description,
@@ -68,10 +73,10 @@ export default function AddTransactionScreen() {
         category: selectedCategory,
         type,
         date: date.toISOString(),
+        person,
       });
 
       navigation.goBack();
-
     } catch (error) {
       Alert.alert("Error", "Failed to add transaction");
       console.error(error);
@@ -275,6 +280,21 @@ export default function AddTransactionScreen() {
           )}
         </View>
 
+        <View style={styles.formGroup}>
+          <View style={styles.personContainer}>
+            <Text style={styles.label}>Person</Text>
+            <Text style={[styles.label, { fontSize: 12, color: "#666" }]}>
+              (Optional)
+            </Text>
+          </View>
+          <TextInput
+            style={styles.input}
+            value={person}
+            onChangeText={setPerson}
+            placeholder="Enter person"
+          />
+        </View>
+
         <TouchableOpacity
           style={styles.addButton}
           onPress={handleAddTransaction}
@@ -293,14 +313,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   typeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
     marginBottom: 24,
     padding: 8,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -310,68 +330,68 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   typeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1.5,
-    minWidth: '45%',
-    backgroundColor: 'white',
+    minWidth: "45%",
+    backgroundColor: "white",
   },
   typeText: {
     marginLeft: 8,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   typeButton_expense: {
-    borderColor: '#e74c3c',
+    borderColor: "#e74c3c",
   },
   typeText_expense: {
-    color: '#e74c3c',
+    color: "#e74c3c",
   },
   selectedTypeButton_expense: {
-    backgroundColor: '#e74c3c',
+    backgroundColor: "#e74c3c",
   },
   typeButton_income: {
-    borderColor: '#2ecc71',
+    borderColor: "#2ecc71",
   },
   typeText_income: {
-    color: '#2ecc71',
+    color: "#2ecc71",
   },
   selectedTypeButton_income: {
-    backgroundColor: '#2ecc71',
+    backgroundColor: "#2ecc71",
   },
   typeButton_lend: {
-    borderColor: '#3498db',
+    borderColor: "#3498db",
   },
   typeText_lend: {
-    color: '#3498db',
+    color: "#3498db",
   },
   selectedTypeButton_lend: {
-    backgroundColor: '#3498db',
+    backgroundColor: "#3498db",
   },
   typeButton_borrow: {
-    borderColor: '#9b59b6',
+    borderColor: "#9b59b6",
   },
   typeText_borrow: {
-    color: '#9b59b6',
+    color: "#9b59b6",
   },
   selectedTypeButton_borrow: {
-    backgroundColor: '#9b59b6',
+    backgroundColor: "#9b59b6",
   },
   typeButton_reminder: {
-    borderColor: '#f1c40f',
+    borderColor: "#f1c40f",
   },
   typeText_reminder: {
-    color: '#f1c40f',
+    color: "#f1c40f",
   },
   selectedTypeButton_reminder: {
-    backgroundColor: '#f1c40f',
+    backgroundColor: "#f1c40f",
   },
   selectedTypeText: {
-    color: 'white',
+    color: "white",
   },
   formGroup: {
     marginBottom: 16,
@@ -415,5 +435,10 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  personContainer: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
   },
 });

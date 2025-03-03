@@ -3,7 +3,7 @@
 import type React from "react";
 import { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { addTransaction } from "@/services/TransactionService";
+import { getTransactionsFromDb } from "@/services/TransactionService";
 
 
 export type TransactionType =
@@ -26,6 +26,7 @@ export interface Transaction {
   date: string;
   category: Category;
   type: TransactionType;
+  person?: string;
 }
 
 interface TransactionContextType {
@@ -58,10 +59,23 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load data from AsyncStorage on mount
+  // Load data from DB ans AsyncStorage on mount
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Load data from DB
+        const transactions = await getTransactionsFromDb();
+
+        if (transactions.length) {
+          setTransactions(transactions as Transaction[]);
+          await AsyncStorage.setItem(
+            "transactions",
+            JSON.stringify(transactions)
+          );
+
+          return;
+        }
+
         const storedTransactions = await AsyncStorage.getItem("transactions");
         const storedCategories = await AsyncStorage.getItem("categories");
 
