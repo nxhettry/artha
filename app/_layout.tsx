@@ -1,39 +1,31 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { NavigationContainer } from "@react-navigation/native"
+import { createNativeStackNavigator } from "@react-navigation/native-stack"
+import { StatusBar } from "expo-status-bar"
+import { SafeAreaProvider } from "react-native-safe-area-context"
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+import HomeScreen from "./screens/HomeScreen"
+import AddTransactionScreen from "./screens/AddTransactionScreen"
+import { TransactionProvider } from "@/context/Transactioncontext"
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+const Stack = createNativeStackNavigator()
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
+export default function App() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+    <SafeAreaProvider>
+      <TransactionProvider>
+        {/* <NavigationContainer> */}
+          <Stack.Navigator initialRouteName="Home">
+            <Stack.Screen name="Home" component={HomeScreen} options={{ title: "Finance Tracker" }} />
+            <Stack.Screen
+              name="AddTransaction"
+              component={AddTransactionScreen}
+              options={{ title: "Add Transaction" }}
+            />
+          </Stack.Navigator>
+        {/* </NavigationContainer>r */}
+      </TransactionProvider>
       <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+    </SafeAreaProvider>
+  )
 }
+
