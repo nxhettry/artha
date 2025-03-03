@@ -3,7 +3,8 @@
 import type React from "react";
 import { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getTransactionsFromDb } from "@/services/TransactionService";
+import { getTransactionsFromDb, addTransactionToDb, checkInternetConnection, syncPendingTransactions, PendingTransaction, deleteTransactionFromDb } from "@/services/TransactionService";
+import NetInfo from '@react-native-community/netinfo';
 
 
 export type TransactionType =
@@ -36,6 +37,7 @@ interface TransactionContextType {
   addCategory: (name: string) => Promise<Category>;
   deleteTransaction: (id: string) => Promise<void>;
   loading: boolean;
+  pendingTransactions: PendingTransaction[];
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(
@@ -58,6 +60,8 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<string[]>([]);
 
   // Load data from DB ans AsyncStorage on mount
   useEffect(() => {
@@ -110,6 +114,74 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({
     loadData();
   }, []);
 
+  // Load pending transactions on mount
+  useEffect(() => {
+    const loadPendingTransactions = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('pendingTransactions');
+        if (stored) {
+          setPendingTransactions(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error("Error loading pending transactions:", error);
+      }
+    };
+
+    loadPendingTransactions();
+  }, []);
+
+  // Load pending deletes on mount
+  useEffect(() => {
+    const loadPendingDeletes = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('pendingDeletes');
+        if (stored) {
+          setPendingDeletes(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error("Error loading pending deletes:", error);
+      }
+    };
+
+    loadPendingDeletes();
+  }, []);
+
+  // Set up network listener to trigger sync
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(async (state) => {
+      if (state.isConnected) {
+        // Sync pending transactions
+        if (pendingTransactions.length > 0) {
+          const synced = await syncPendingTransactions(pendingTransactions);
+          if (synced) {
+            setPendingTransactions([]);
+            await AsyncStorage.removeItem('pendingTransactions');
+          }
+        }
+
+        // Sync pending deletes
+        if (pendingDeletes.length > 0) {
+          for (const id of pendingDeletes) {
+            try {
+              await deleteTransactionFromDb(id);
+            } catch (error) {
+              console.error("Error syncing delete:", error);
+              continue;
+            }
+          }
+          setPendingDeletes([]);
+          await AsyncStorage.removeItem('pendingDeletes');
+        }
+
+        // Refresh transactions from DB
+        const transactions = await getTransactionsFromDb();
+        setTransactions(transactions as Transaction[]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [pendingTransactions, pendingDeletes]);
+
   // Save transactions to AsyncStorage whenever they change
   useEffect(() => {
     const saveTransactions = async () => {
@@ -143,12 +215,66 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [categories, loading]);
 
+  // Save pending transactions whenever they change
+  useEffect(() => {
+    const savePendingTransactions = async () => {
+      try {
+        await AsyncStorage.setItem(
+          'pendingTransactions',
+          JSON.stringify(pendingTransactions)
+        );
+      } catch (error) {
+        console.error("Error saving pending transactions:", error);
+      }
+    };
+
+    if (pendingTransactions.length > 0) {
+      savePendingTransactions();
+    }
+  }, [pendingTransactions]);
+
+  // Save pending deletes whenever they change
+  useEffect(() => {
+    const savePendingDeletes = async () => {
+      try {
+        if (pendingDeletes.length > 0) {
+          await AsyncStorage.setItem('pendingDeletes', JSON.stringify(pendingDeletes));
+        } else {
+          await AsyncStorage.removeItem('pendingDeletes');
+        }
+      } catch (error) {
+        console.error("Error saving pending deletes:", error);
+      }
+    };
+
+    savePendingDeletes();
+  }, [pendingDeletes]);
+
   const addTransaction = async (transaction: Omit<Transaction, "id">) => {
     const newTransaction = {
       ...transaction,
       id: Date.now().toString(),
     };
-    setTransactions([newTransaction, ...transactions]);
+
+    try {
+      // Try to add to DB first
+      await addTransactionToDb(newTransaction);
+      // If successful, add to local state
+      setTransactions([newTransaction, ...transactions]);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'offline') {
+        // If offline, add to pending transactions
+        const pendingTransaction: PendingTransaction = {
+          ...newTransaction,
+          syncStatus: 'pending'
+        };
+        setPendingTransactions([...pendingTransactions, pendingTransaction]);
+        // Also add to local transactions
+        setTransactions([newTransaction, ...transactions]);
+      } else {
+        throw error;
+      }
+    }
   };
 
   const addCategory = async (name: string): Promise<Category> => {
@@ -161,9 +287,23 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteTransaction = async (id: string) => {
-    setTransactions(
-      transactions.filter((transaction) => transaction.id !== id)
-    );
+    try {
+      // Try to delete from DB first
+      await deleteTransactionFromDb(id);
+      // If successful, remove from local state
+      setTransactions(transactions.filter(t => t.id !== id));
+    } catch (error) {
+      if (error instanceof Error && error.message === 'offline') {
+        // If offline, add to pending deletes
+        setPendingDeletes([...pendingDeletes, id]);
+        // Remove from local state
+        setTransactions(transactions.filter(t => t.id !== id));
+        // Also remove from pending transactions if it exists there
+        setPendingTransactions(pendingTransactions.filter(t => t.id !== id));
+      } else {
+        throw error;
+      }
+    }
   };
 
   return (
@@ -175,6 +315,7 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({
         addCategory,
         deleteTransaction,
         loading,
+        pendingTransactions,
       }}
     >
       {children}

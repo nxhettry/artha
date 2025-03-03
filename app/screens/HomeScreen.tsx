@@ -23,12 +23,17 @@ export default function HomeScreen() {
   }
 
   const navigation = useNavigation();
-  const { transactions, deleteTransaction, loading } = useTransactions();
+  const { transactions, pendingTransactions, deleteTransaction, loading } = useTransactions();
   const [filter, setFilter] = useState<"all" | "expense" | "income" | "lend">(
     "all"
   );
 
-  const filteredTransactions = transactions.filter((transaction) => {
+  // Combine and sort all transactions
+  const allTransactions = [...transactions, ...pendingTransactions].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const filteredTransactions = allTransactions.filter((transaction) => {
     if (filter === "all") return true;
     return transaction.type === filter;
   });
@@ -39,7 +44,6 @@ export default function HomeScreen() {
     } else if (transaction.type === "expense") {
       return sum - transaction.amount;
     } else {
-      // For lend, we're considering it as money going out
       return sum - transaction.amount;
     }
   }, 0);
@@ -53,7 +57,16 @@ export default function HomeScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () => deleteTransaction(id),
+          onPress: async () => {
+            try {
+              await deleteTransaction(id);
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                "Failed to delete transaction. It will be deleted when back online."
+              );
+            }
+          },
         },
       ]
     );
@@ -69,7 +82,7 @@ export default function HomeScreen() {
             totalBalance < 0 ? styles.negative : styles.positive,
           ]}
         >
-          ${Math.abs(totalBalance).toFixed(2)}
+          Rs.{Math.abs(totalBalance).toFixed(2)}
           {totalBalance < 0 ? " (Debt)" : ""}
         </Text>
       </View>
@@ -119,11 +132,12 @@ export default function HomeScreen() {
         ) : (
           <FlatList
             data={filteredTransactions}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => `${item.id}-${item.date}`}
             renderItem={({ item }) => (
               <TransactionItem
                 transaction={item}
                 onDelete={() => handleDeleteTransaction(item.id)}
+                isPending={'syncStatus' in item && item.syncStatus === 'pending'}
               />
             )}
             showsVerticalScrollIndicator={false}

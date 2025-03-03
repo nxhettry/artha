@@ -5,6 +5,7 @@ import type { Transaction } from "@/context/Transactioncontext";
 interface TransactionItemProps {
   transaction: Transaction;
   onDelete: () => void;
+  isPending?: boolean;
 }
 
 export default function TransactionItem({

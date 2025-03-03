@@ -52,20 +52,6 @@ export default function AddTransactionScreen() {
     }
 
     try {
-      await addTransactionToDb({
-        title,
-        description,
-        amount: Number(amount),
-        category: selectedCategory,
-        type,
-        date: date.toISOString(),
-        id: "",
-        person,
-      });
-
-
-      // This is for async storage
-      // ToDo : make this store the transaction offline and attach to Db later
       await addTransaction({
         title,
         description,
@@ -78,8 +64,17 @@ export default function AddTransactionScreen() {
 
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", "Failed to add transaction");
-      console.error(error);
+      if (error instanceof Error && error.message !== 'offline') {
+        Alert.alert("Error", "Failed to add transaction");
+        console.error(error);
+      } else {
+        // If offline, transaction was saved to pending
+        Alert.alert(
+          "Offline Mode",
+          "Transaction saved locally and will sync when online",
+          [{ text: "OK", onPress: () => navigation.goBack() }]
+        );
+      }
     }
   };
 

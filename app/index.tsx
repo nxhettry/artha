@@ -15,8 +15,12 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+
+type RootStackParamList = {
+  Home: undefined;
+};
 
 export default function App() {
   const [email, setEmail] = useState("");
@@ -24,7 +28,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
   const handleAuth = async () => {
     try {
@@ -34,7 +38,10 @@ export default function App() {
         await signInWithEmailAndPassword(auth, email, password);
       }
       // @ts-ignore
-      navigation.navigate("Home");
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
     } catch (error: any) {
       console.log(error);
       setError(error.message);
