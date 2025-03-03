@@ -20,6 +20,7 @@ import {
   type TransactionType,
 } from "@/context/Transactioncontext";
 import CategoryPicker from "@/components/CategoryPicker";
+import { addTransactionToDb } from "@/services/TransactionService";
 
 export default function AddTransactionScreen() {
   const navigation = useNavigation();
@@ -50,6 +51,16 @@ export default function AddTransactionScreen() {
     }
 
     try {
+      await addTransactionToDb({
+        title,
+        description,
+        amount: Number(amount),
+        category: selectedCategory,
+        type,
+        date: date.toISOString(),
+        id: "",
+      });
+
       await addTransaction({
         title,
         description,
@@ -60,6 +71,7 @@ export default function AddTransactionScreen() {
       });
 
       navigation.goBack();
+
     } catch (error) {
       Alert.alert("Error", "Failed to add transaction");
       console.error(error);

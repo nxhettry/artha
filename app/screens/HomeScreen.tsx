@@ -12,8 +12,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTransactions } from "@/context/Transactioncontext";
 import TransactionItem from "@/components/TransactionItem";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getAuth } from "firebase/auth";
+import { Redirect } from "expo-router";
 
 export default function HomeScreen() {
+  const user = getAuth().currentUser;
+
+  if (!user) {
+    return <Redirect href="/" />;
+  }
+
   const navigation = useNavigation();
   const { transactions, deleteTransaction, loading } = useTransactions();
   const [filter, setFilter] = useState<"all" | "expense" | "income" | "lend">(

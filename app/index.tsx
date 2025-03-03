@@ -15,7 +15,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
 } from "firebase/auth";
-import { router } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function App() {
@@ -24,6 +24,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const navigation = useNavigation();
 
   const handleAuth = async () => {
     try {
@@ -32,7 +33,8 @@ export default function App() {
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
-      router.replace("/screens/HomeScreen");
+      // @ts-ignore
+      navigation.navigate("Home");
     } catch (error: any) {
       console.log(error);
       setError(error.message);
